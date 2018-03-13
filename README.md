@@ -46,7 +46,7 @@ M = the current sequence number of the Execution Escrow account
     Multisignature Transactions:
         Account: Execution Escrow
         Sequence Number: M+1 
-        Operations: Set Options - set lowthreshold to 3 and add Validator as                               signer with weight 1
+        Operations: Set Options - set lowthreshold to 3 and add Validator as signer with weight 1
         Required Signature: Charity Hub, Campaign Onwer
 
 
