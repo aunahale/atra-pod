@@ -1,180 +1,79 @@
-# Dillinger
-
-[![N|Solid](https://cldup.com/dTxpPi9lDf.thumb.png)](https://nodesource.com/products/nsolid)
-
-Dillinger is a cloud-enabled, mobile-ready, offline-storage, AngularJS powered HTML5 Markdown editor.
-
-  - Type some Markdown on the left
-  - See HTML in the right
-  - Magic
-
-# New Features!
-
-  - Import a HTML file and watch it magically convert to Markdown
-  - Drag and drop images (requires your Dropbox account be linked)
+# Charity Hub - Stellar Donation Crowdfunding Platform
 
 
-You can also:
-  - Import and save files from GitHub, Dropbox, Google Drive and One Drive
-  - Drag and drop markdown and HTML files into Dillinger
-  - Export documents as Markdown, HTML and PDF
+Charity Hub facilitates donation crowdfunding by acting as an ICO platform to issue stellar based asset tokens for charities. Under the concept “Donate without Doubt. Payment by Result”, donors get the visibility and verifiability into each project by leveraging [Stellar]’s strength such as token creation, built-in exchange, multi-signature escrow account, and timebound, with third-party participation as an oracle.
 
-Markdown is a lightweight markup language based on the formatting conventions that people naturally use in email.  As [John Gruber] writes on the [Markdown site][df1]
+For more details on how our platform works, please visit us at charity-hub.org
 
-> The overriding design goal for Markdown's
-> formatting syntax is to make it as readable
-> as possible. The idea is that a
-> Markdown-formatted document should be
-> publishable as-is, as plain text, without
-> looking like it's been marked up with tags
-> or formatting instructions.
+In this document, we explain the [Stellar] logics and operations used to support the features in our platform.
 
-This text you see here is *actually* written in Markdown! To get a feel for Markdown's syntax, type some text into the left window and watch the results in the right.
+### Crowdfunding Stellar Token 
 
-### Tech
+Once the charity provides details on the campaign, funding requirements, deadlines and the corresponding sub-campaigns, Charity Hub issues a campaign specific token to raise fund.
 
-Dillinger uses a number of open source projects to work properly:
+Here are the high level steps involved in Stellar:
 
-* [AngularJS] - HTML enhanced for web apps!
-* [Ace Editor] - awesome web-based text editor
-* [markdown-it] - Markdown parser done right. Fast and easy to extend.
-* [Twitter Bootstrap] - great UI boilerplate for modern web apps
-* [node.js] - evented I/O for the backend
-* [Express] - fast node.js network app framework [@tjholowaychuk]
-* [Gulp] - the streaming build system
-* [Breakdance](http://breakdance.io) - HTML to Markdown converter
-* [jQuery] - duh
+Four accounts are involved in the process - Charity Hub Account,
+Campaign Owner Account, Fundraising Escrow Account and Execution Escrow Account.
 
-And of course Dillinger itself is open source with a [public repository][dill]
- on GitHub.
+1. Charity Hub creates a Fundraising Escrow Account and Execution Escrow Account
+2. Charity Hub issues a fundraising token and sends it to the Fundraising Escrow Account
+3. Charity Hub sets both the Fudraising and Execution escrow accounts as multisignature accounts requiring signature from Charity Hub and Campaign Owner
+4. Fundraising Escrow Account creates an offer to sell the fundraising token at the price to match with the fundraising goal
+5. If the campaign fails to reach the fund raising goal by a certain deadline, the Fundraising Escrow Account creates an offer to buy the fundraising token back
+6. Otherwise, if the campaign succeeds, the Fundraising Escrow Account sends the money to the Execution Escrow Account
 
-### Installation
+The sellar operations required for the above steps follow closely to the descriptions provided in [Stellar Crowdfunding] and [Stellar Smart Contracts]
 
-Dillinger requires [Node.js](https://nodejs.org/) v4+ to run.
+### Releasing Funds to Campaign Owner With Validator Oracle 
 
-Install the dependencies and devDependencies and start the server.
+Funds in the Execution Escrow Account are locked and will be slowly realeased to the campaign owner after the campaign owner successfully acieves the target for each sub-campaign.
 
-```sh
-$ cd dillinger
-$ npm install -d
-$ node app
-$ asdf
-```
+But how do we know whether the campaign owner actually completes the goal of each sub-campaign? This is where a third party auditor comes in. A third party auditor is assigned to validate whether the campaign owner actually completes the target of each sub-campaign. The campaign owner must provide evidence for the auditor to check and validate. Once validation is complete, then the reward money will be released to the campaign owner.
 
-For production environments...
+At a high level, the steps in Stellar are as follow:
+1. The Execution Escrow Account is set to require another signature from the Validator to perform any transaction - so now the Execution Escrow Account requires signature from Charity Hub, Campaign Owner, and the Validator.
+2. Charity Hub creates transactions to send funds from the Execution Escrow Account to the Campaign Owner account (each transaction correspond to the reward assciated to each sub-campaign). These transactions are pre-signed by Charity Hub and Campaign Owner. The Validator will only sign each transaction once it has validated the completion of the sub-campaign.
+3. In the case that the Campaign Owner is not able to complete all the sub-campaign goals by a certain deadline, the Execution Escrow Account issues a buy offer for the fundraising token to refund the remaining money back.
 
-```sh
-$ npm install --production
-$ NODE_ENV=production node app
-```
+Here are the steps in Stellar:
 
-### Plugins
+Let:
+Q = number of subcampaign
+S(q) = reward for each subcampaign
+M = the current sequence number of the Execution Escrow account
 
-Dillinger is currently extended with the following plugins. Instructions on how to use them in your own application are linked below.
-
-| Plugin | README |
-| ------ | ------ |
-| Dropbox | [plugins/dropbox/README.md][PlDb] |
-| Github | [plugins/github/README.md][PlGh] |
-| Google Drive | [plugins/googledrive/README.md][PlGd] |
-| OneDrive | [plugins/onedrive/README.md][PlOd] |
-| Medium | [plugins/medium/README.md][PlMe] |
-| Google Analytics | [plugins/googleanalytics/README.md][PlGa] |
+    Multisignature Transactions:
+        Account: Execution Escrow
+        Sequence Number: M+1 
+        Operations: Set Options - set lowthreshold to 3 and add Validator as                               signer with weight 1
+        Required Signature: Charity Hub, Campaign Onwer
 
 
-### Development
+A set of transactions are then created to send funds to the Campaign Onwer account based on the reward associated with each sub-campaign. Note that the Validator will only sign the transaction after it has completed the verification process for each sub-campaign.
 
-Want to contribute? Great!
+Let's assume Y is the current sequence number of the Execution Escrow account. So after the transaction above, Y = M+1.
 
-Dillinger uses Gulp + Webpack for fast developing.
-Make a change in your file and instantanously see your updates!
+    Fund Transfer Transactions:
+        Account: Execution Escrow
+        Sequence Number: Y+1 to Y+Q
+        Operations: Send S(q) XLM to Campaign Owner Account
+        Required Signature: Charity Hub, Campaign Onwer, Validator
 
-Open your favorite Terminal and run these commands.
+In parallel, to guarantee that the Campaign Onwer will refund the money back in the case where it fails to complete all the sub-campaign goals by the end of the deadline, we create a set of transactions (with sequence number Y+1 to Y+Q) to issue a buy offer for the token upfront with minimum timebound set to the deadline date. For example, if the campaign owner completed only "j" out of the Q subcampaigns by the end of the deadline, then we can submit the refund transaction with sequence number Y+j+1 to the network.
 
-First Tab:
-```sh
-$ node app
-```
-
-Second Tab:
-```sh
-$ gulp watch
-```
-
-(optional) Third:
-```sh
-$ karma test
-```
-#### Building for source
-For production release:
-```sh
-$ gulp build --prod
-```
-Generating pre-built zip archives for distribution:
-```sh
-$ gulp build dist --prod
-```
-### Docker
-Dillinger is very easy to install and deploy in a Docker container.
-
-By default, the Docker will expose port 8080, so change this within the Dockerfile if necessary. When ready, simply use the Dockerfile to build the image.
-
-```sh
-cd dillinger
-docker build -t joemccann/dillinger:${package.json.version}
-```
-This will create the dillinger image and pull in the necessary dependencies. Be sure to swap out `${package.json.version}` with the actual version of Dillinger.
-
-Once done, run the Docker image and map the port to whatever you wish on your host. In this example, we simply map port 8000 of the host to port 8080 of the Docker (or whatever port was exposed in the Dockerfile):
-
-```sh
-docker run -d -p 8000:8080 --restart="always" <youruser>/dillinger:${package.json.version}
-```
-
-Verify the deployment by navigating to your server address in your preferred browser.
-
-```sh
-127.0.0.1:8000
-```
-
-#### Kubernetes + Google Cloud
-
-See [KUBERNETES.md](https://github.com/joemccann/dillinger/blob/master/KUBERNETES.md)
+    Refund Transactions:
+        Account: Execution Escrow
+        Sequence Number: Y+1 to Y+Q
+        Time Bound: minimum time - campaign deadline
+        Operations: Create offer to buy all the Fundraising Token
+        Required Signature: Charity Hub, Campaign Owner, Validator
 
 
-### Todos
-
- - Write MORE Tests
- - Add Night Mode
-
-License
-----
-
-MIT
+We've shared the javascript code we used to execute these stellar operations in this github repository. 
 
 
-**Free Software, Hell Yeah!**
-
-[//]: # (These are reference links used in the body of this note and get stripped out when the markdown processor does its job. There is no need to format nicely because it shouldn't be seen. Thanks SO - http://stackoverflow.com/questions/4823468/store-comments-in-markdown-syntax)
-
-
-   [dill]: <https://github.com/joemccann/dillinger>
-   [git-repo-url]: <https://github.com/joemccann/dillinger.git>
-   [john gruber]: <http://daringfireball.net>
-   [df1]: <http://daringfireball.net/projects/markdown/>
-   [markdown-it]: <https://github.com/markdown-it/markdown-it>
-   [Ace Editor]: <http://ace.ajax.org>
-   [node.js]: <http://nodejs.org>
-   [Twitter Bootstrap]: <http://twitter.github.com/bootstrap/>
-   [jQuery]: <http://jquery.com>
-   [@tjholowaychuk]: <http://twitter.com/tjholowaychuk>
-   [express]: <http://expressjs.com>
-   [AngularJS]: <http://angularjs.org>
-   [Gulp]: <http://gulpjs.com>
-
-   [PlDb]: <https://github.com/joemccann/dillinger/tree/master/plugins/dropbox/README.md>
-   [PlGh]: <https://github.com/joemccann/dillinger/tree/master/plugins/github/README.md>
-   [PlGd]: <https://github.com/joemccann/dillinger/tree/master/plugins/googledrive/README.md>
-   [PlOd]: <https://github.com/joemccann/dillinger/tree/master/plugins/onedrive/README.md>
-   [PlMe]: <https://github.com/joemccann/dillinger/tree/master/plugins/medium/README.md>
-   [PlGa]: <https://github.com/RahulHP/dillinger/blob/master/plugins/googleanalytics/README.md>
+   [Stellar Crowdfunding]: <https://www.stellar.org/blog/multisig-and-simple-contracts-stellar>
+   [Stellar Smart Contracts]: <https://www.stellar.org/developers/guides/walkthroughs/stellar-smart-contracts.html>
+   [Stellar]: <https://www.stellar.org/>
+   
